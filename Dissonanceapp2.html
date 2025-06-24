@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dissonance RPG - Character Creator</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React and ReactDOM libraries from CDN -->
+    <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3, h4, h5, h6 { font-family: 'Orbitron', sans-serif; }
+        /* Simple fade-in animation for each step */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn { animation: fadeIn 0.5s ease-out forwards; }
+    </style>
+</head>
+<body class="bg-slate-900">
+    <div id="root"></div>
+
+    <script>
+        // Shorter alias for React.createElement for readability
+        const e = React.createElement;
+        const { useState, useEffect, useCallback } = React;
+
+        // --- GAME DATA ---
+        // This section contains all the game data from the rulebook.
+        const ALL_CAREERS = { "Academic": "Research, analyse ecosystems, reverse-engineer tech.", "Torque": "Repair, jury-rig, or sabotage machinery/vehicles.", "Soldier": "Combat tactics, weapons maintenance, intimidation.", "Bounty Hunter": "Track targets, set ambushes, navigate warzones.", "Colonist": "Endure harsh environments, work heavy machinery, resist exploitation.", "Pilot": "Navigate hazardous space, outrun patrols, perform evasive manoeuvres.", "Doctor": "Medical procedures, treat cybernetic rejection or diseases.", "Shadow": "Infiltrate secure locations, impersonate identities, steal data.", "Corpo": "Negotiate, manipulate corporate politics, manage resources.", "Weaver": "Breach digital security, hack implants, manipulate neural networks.", "Outlaw": "Evade blockades, transport contraband, navigate underworld markets.", "Scavenger": "Salvage resources or survive hazardous ruins.", "Marshal": "Enforce law, track fugitives, mediate frontier conflicts.", "Scout": "Chart unknown territory, survive hostile environments, detect hidden threats.", "Fixer": "Broker secrets, gather intel, negotiate covert exchanges.", "Dilettante": "Charm, etiquette, navigate luxury and privilege." };
+        const DL_CAREERS = { "Medical": "Diagnose injuries, monitor vitals, guide surgery.", "Administration": "Sort data, find loopholes in contracts, manage logistics.", "Astronavigation": "Handle stellar cartography and calculate hyperspace jumps.", "Infosec": "Specializes in hacking and digital countermeasures.", "Engineering": "Run diagnostics on machinery, create blueprints.", "Custom/Rogue": "A unique specialization designed with the GM." };
+        const POSITIVE_TAGS = { "Protective": "Once per round, roll Reflex Save TN 9 to intercept a hit on an ally. Adjacent allies gain +1 Defence.", "Sangfroid": "Once per scene, negate the first SP gain from any roll during an action sequence.", "Stoic": "Once per scene, you may roll a Will Save instead of an Endurance Save. If successful, gain +2 FP.", "Bad Temper": "Once per scene, gain +2 FP when resisting Manipulation or Persuasion.", "Meticulous": "Once per scene, when taking extra time to prepare (Ready Action), gain +2 FP for the next related roll.", "Veteran": "Gain +2 FP on rolls to resist Surprise or Fear effects.", "Adaptable": "Once per scene, if you change your declared action due to shifting threats, gain +2 FP.", "Authority": "Once per combat, reduce 1 SP gained by an ally in line of sight (once per ally).", "Trained by a Master": "Choose one Career. Once per scene, gain +2 FP when rolling that Career.", "Opportunistic": "Once per scene, if rolling against an opponent whose SP is higher than your FP, gain +2 FP before the roll.", "Carouser": "Once per scene, gain +2 FP when gathering info, making contacts, or bartering.", "Tenacious": "Once per scene, if you revisit a previously failed action, gain +2 FP when trying again.", "Overclocked Reflexes": "Once per scene, gain +2 FP when making a Reflex Save or rolling Initiative.", "Autonomous Locomotion Rig (ALR)": "Once per session, if knocked unconscious, your body may automatically move to a pre-programmed safe zone.", "Bone Reinforcement": "Gain DR 1 vs. Blunt/Knockdown. Once per scene, gain +2 FP after being hit by kinetic damage.", "Smartblood Composite": "Once per scene, gain +2 FP when holding breath or resisting Environmental/Toxic effects.", "Subdermal Grip Nodes": "Once per scene, gain +2 FP when grappling, climbing, or maintaining grip under strain.", "Neural Crossfire Hub": "Once per scene, gain +2 FP when splitting focus between two tasks.", "Pheromone Cloak": "Once per scene, gain +2 FP to either reduce suspicion or enhance charm.", "Accelerated Healing Nanites": "Once per turn, when HP is below 50%, recover 1 HP. Ignore a Minor Wound Tag's impact once per combat.", "Owl’s Vision": "Gain +2 FP once per scene when acting in darkness, targeting a distant enemy, or spotting fine detail.", "Precision-Tuned Myofibers": "Once per scene, gain +2 FP when performing a Dexterity roll requiring steady hands.", "Predator Gait Calibration": "Once per scene, gain +2 FP when attempting Stealth or Pursuit actions.", "Servo Strength": "Once per scene, gain +2 FP when attempting a feat of brute strength or a power-based melee attack." };
+        const NEGATIVE_TAGS = { "Haunted": "Your Muse is a Ghost. Once per scene, the GM may trigger it to interfere disturbingly, giving you +1 SP.", "Paranoia": "After failing a Perception roll, gain +1 SP as your mind spirals.", "Bad Filters": "Once per scene, GM can describe sensory interference. Gain +1 SP.", "Unplugged": "You lack Mesh integration. Once per session, this causes a narrative complication and +1 SP.", "Ex-Drone": "You were part of a hive mind. When faced with total freedom or isolation, gain +1 SP.", "Rebel": "When asked to follow direct orders, roll Will. On failure, act against the command and gain +1 SP.", "Selfless": "When you fail to act selflessly when the opportunity arises, gain +1 SP.", "Edited Memories": "Once per session, GM can describe a memory misfire. Gain +1 SP.", "Dominant Member": "When performing a task under pressure with your non-dominant hand, gain +1 SP once per scene.", "Callous": "People you've wronged react negatively. Take +1 SP to social rolls with them.", "Social Anxiety": "Once per scene in a high-pressure social setting, gain +1 SP.", "Nano Intolerance": "Once per scene, if you activate or interface with nanotech, gain +1 SP from internal rejection." };
+        const ARCHETYPES = { Brains: { description: "A brilliant Academic or a cunning Weaver who handles technical and intellectual challenges." }, Muscle: { description: "A hardened Soldier or tough-as-nails Colonist who excels at combat and intimidation." }, Ghost: { description: "A stealthy Shadow or a resourceful Scavenger who specializes in infiltration." }, Face: { description: "A charismatic Fixer or a well-connected Dilettante who navigates the social landscape." }, Zealot: { description: "A scholar or visionary with a dangerous obsession, offering strange insights." } };
+        const OBLIGATIONS = { "Debt": "You owe someone. Big time. It's not always about credits.", "Betrayal": "You were betrayed by someone you trusted, or you're the one who did the betraying.", "Responsibility": "You feel a profound sense of accountability to a specific person, place, or thing.", "Blackmail": "Someone knows your dirty little secret and they're pulling your strings.", "Dutybound": "You are bound by a code or a loyalty to a group from your past.", "Obsession": "You are fixated on a person, object, or concept.", "Addiction": "You have a craving you must feed, be it for a substance or a thrill.", "Family": "Your extended family is a constant drain on your resources and loyalty.", "Criminal": "You've got a rap sheet that follows you, or you're tangled in a legal nightmare for a crime you may not have committed.", "Bounty": "There's a price on your head, legal or otherwise. Sleep light." };
+        const NAMES = { Brains: ["Aksel", "Soren", "Jian"], Muscle: ["Zane", "Vex", "Rook"], Ghost: ["Nyx", "Echo", "Vanish"], Face: ["Silas", "Cora", "Jax"], Zealot: ["Elias", "Cassian", "Orin"] };
+        const BACKGROUND_TEMPLATES = { Brains: (c) => `A certified genius running from the consequences of their ambition, ${c.name} treats the universe as a problem to be solved. Their biggest problem? The debt they incurred for the chrome that makes them so smart.`, Muscle: (c) => `Once a loyal corporate enforcer, ${c.name} now sells their skills to the highest bidder. They fight to protect their crew, the only family they have left after their old one was burned and discarded.`, Ghost: (c) => `${c.name} is a whisper, a phantom who slides through the cracks in the system. They erased their own past to survive a job gone bad, but someone holds the keys to their old life, blackmailing them into service.`, Face: (c) => `As captain of 'The Vagrant,' ${c.name} is the unflappable eye of the hurricane. They have to be. Juggling a demanding family, a decaying ship, and a crew of volatile specialists requires a steady hand and an even steadier nerve.`, Zealot: (c) => `${c.name} isn't in it for the money. A former academic, they touched something in the Mesh—something they call 'The Chorus'—and it shattered their reality. Now they hunt Ghosts and Fragments, convinced they are sacred texts.` };
+
+        // --- HELPER & GENERIC COMPONENTS ---
+        const Button = ({ text, onClick, disabled = false, primary = true }) => e('button', {
+            onClick,
+            disabled,
+            className: `px-8 py-3 font-bold rounded-md transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed ${primary ? 'bg-cyan-500 text-slate-900 hover:bg-cyan-400' : 'bg-slate-700 text-white hover:bg-slate-600'}`
+        }, text);
+
+        const OptionCard = ({ title, description, onSelect, isSelected }) => e('div', {
+            className: `p-4 md:p-6 border-2 rounded-lg cursor-pointer transition-all duration-200 ${isSelected ? 'bg-cyan-400 border-cyan-300 text-slate-900 shadow-lg scale-105' : 'bg-slate-800 border-slate-700 hover:border-cyan-500 hover:bg-slate-700'}`,
+            onClick: onSelect,
+        },
+            e('h3', { className: 'text-lg md:text-xl font-bold mb-2 text-white' }, title),
+            e('p', { className: 'text-sm opacity-80' }, description)
+        );
+
+        const StepContainer = ({ title, children }) => e('div', { className: 'w-full max-w-6xl mx-auto p-4 md:p-8 animate-fadeIn' },
+            e('h2', { className: 'text-3xl md:text-4xl font-black text-cyan-300 mb-2 tracking-wider uppercase' }, title),
+            e('div', { className: 'w-20 h-1 bg-cyan-300 mb-8' }),
+            children
+        );
+
+        const PointAllocator = ({ label, value, onIncrement, onDecrement, max }) => e('div', { className: "flex items-center justify-between bg-slate-800 p-3 rounded-md" },
+            e('span', { className: "text-lg text-white" }, label),
+            e('div', { className: "flex items-center gap-4" },
+                e('button', { onClick: onDecrement, className: "w-8 h-8 rounded-full bg-red-500 text-white font-bold text-xl flex items-center justify-center hover:bg-red-400 disabled:opacity-50", disabled: value <= 0 }, "-"),
+                e('span', { className: "text-2xl font-bold w-8 text-center text-cyan-300" }, `+${value}`),
+                e('button', { onClick: onIncrement, className: "w-8 h-8 rounded-full bg-green-500 text-white font-bold text-xl flex items-center justify-center hover:bg-green-400 disabled:opacity-50", disabled: value >= max }, "+")
+            )
+        );
+
+        // --- STEP COMPONENTS (Defined outside App to prevent re-creation on render) ---
+        const ArchetypeStep = ({ onUpdate, nextStep, character }) => e(StepContainer, { title: "Step 1: Choose Archetype" },
+            e('div', { className: 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8' },
+                Object.entries(ARCHETYPES).map(([name, data]) => e(OptionCard, { key: name, title: name, description: data.description, isSelected: character.archetype === name, onSelect: () => onUpdate('archetype', name) }))
+            ),
+            e('div', { className: 'text-center' }, e(Button, { text: 'Confirm Archetype', onClick: nextStep, disabled: !character.archetype }))
+        );
+
+        const AttributeStep = ({ onUpdate, nextStep, character }) => {
+            const [attributes, setAttributes] = useState(character.attributes);
+            const totalPoints = 4;
+            const pointsUsed = Object.values(attributes).reduce((a, b) => a + b, 0);
+
+            const handleChange = (attr, delta) => {
+                const newValue = attributes[attr] + delta;
+                const newTotal = pointsUsed - attributes[attr] + newValue;
+                if (newValue >= 0 && newValue <= 2 && newTotal <= totalPoints) {
+                    setAttributes(prev => ({ ...prev, [attr]: newValue }));
+                }
+            };
+            
+            const handleNext = () => {
+                if(pointsUsed === totalPoints) {
+                    onUpdate('attributes', attributes);
+                    nextStep();
+                }
+            }
+
+            return e(StepContainer, { title: "Step 2: Assign Attributes" },
+                e('p', { className: 'mb-4 text-slate-300' }, `Allocate 4 points into your core attributes. No attribute can start higher than +2.`),
+                e('div', {className: "text-right text-cyan-300 font-bold text-lg mb-4"}, `Points Remaining: ${totalPoints - pointsUsed}`),
+                e('div', { className: "space-y-4 max-w-md mx-auto mb-8" },
+                    e(PointAllocator, {label: "Somatic (SOM)", value: attributes.SOM, onIncrement: () => handleChange('SOM', 1), onDecrement: () => handleChange('SOM', -1), max: 2 }),
+                    e(PointAllocator, {label: "Dexterity (DEX)", value: attributes.DEX, onIncrement: () => handleChange('DEX', 1), onDecrement: () => handleChange('DEX', -1), max: 2 }),
+                    e(PointAllocator, {label: "Cognition (COG)", value: attributes.COG, onIncrement: () => handleChange('COG', 1), onDecrement: () => handleChange('COG', -1), max: 2 }),
+                    e(PointAllocator, {label: "Presence (PRE)", value: attributes.PRE, onIncrement: () => handleChange('PRE', 1), onDecrement: () => handleChange('PRE', -1), max: 2 })
+                ),
+                e('div', { className: 'text-center' }, e(Button, { text: 'Confirm Attributes', onClick: handleNext, disabled: pointsUsed !== totalPoints }))
+            );
+        };
+        
+        const CareerStep = ({ onUpdate, nextStep, character }) => {
+            const [selectedCareers, setSelectedCareers] = useState(character.careers);
+            const totalCareers = 4;
+            const totalPoints = 4;
+            const pointsUsed = Object.values(selectedCareers).reduce((a, b) => a + b, 0);
+
+            const handleToggleCareer = (career) => {
+                setSelectedCareers(prev => {
+                    const newCareers = { ...prev };
+                    if (newCareers.hasOwnProperty(career)) {
+                        delete newCareers[career];
+                    } else if (Object.keys(newCareers).length < totalCareers) {
+                        newCareers[career] = 0;
+                    }
+                    return newCareers;
+                });
+            };
+
+            const handlePointChange = (career, delta) => {
+                const newValue = selectedCareers[career] + delta;
+                const newTotal = pointsUsed - selectedCareers[career] + newValue;
+                if (newValue >= 0 && newValue <= 2 && newTotal <= totalPoints) {
+                    setSelectedCareers(prev => ({ ...prev, [career]: newValue }));
+                }
+            };
+            
+            const handleNext = () => {
+                if (Object.keys(selectedCareers).length === totalCareers && pointsUsed === totalPoints) {
+                    onUpdate('careers', selectedCareers);
+                    nextStep();
+                }
+            }
+
+            return e(StepContainer, { title: "Step 3: Choose Careers" },
+                e('p', { className: 'mb-4 text-slate-300' }, `Select exactly 4 starting careers, then allocate 4 points among them (max +2 in any single career).`),
+                e('div', {className: 'grid grid-cols-1 md:grid-cols-2 gap-8'},
+                    e('div', {}, 
+                        e('h4', {className: 'text-xl text-cyan-300 mb-2'}, `Select Careers (${Object.keys(selectedCareers).length}/${totalCareers})`),
+                        e('div', { className: 'grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-96 overflow-y-auto p-1' },
+                            Object.entries(ALL_CAREERS).map(([name, desc]) => e(OptionCard, { key: name, title: name, description: desc, isSelected: selectedCareers.hasOwnProperty(name), onSelect: () => handleToggleCareer(name) }))
+                        )
+                    ),
+                    e('div', {},
+                        e('h4', {className: 'text-xl text-cyan-300 mb-2'}, `Allocate Points (${pointsUsed}/${totalPoints})`),
+                        Object.keys(selectedCareers).length > 0 ?
+                            e('div', {className: 'space-y-4'},
+                                Object.keys(selectedCareers).sort().map(career => e(PointAllocator, {key: career, label: career, value: selectedCareers[career], onIncrement: () => handlePointChange(career, 1), onDecrement: () => handlePointChange(career, -1), max: 2}))
+                            ) : e('p', {className: 'text-slate-400 italic mt-4'}, 'Select careers to allocate points.')
+                    )
+                ),
+                e('div', { className: 'text-center mt-8' }, e(Button, { text: 'Confirm Careers', onClick: handleNext, disabled: !(Object.keys(selectedCareers).length === totalCareers && pointsUsed === totalPoints)}))
+            );
+        };
+        
+        const MuseStep = ({ onUpdate, nextStep, character }) => {
+            const [museName, setMuseName] = useState(character.muse.name || '');
+            const [museCareer, setMuseCareer] = useState(character.muse.career || '');
+            const [complexityPoints, setComplexityPoints] = useState(character.muse.complexity || 0);
+
+            const handleNext = () => {
+                if (museName && museCareer) {
+                    onUpdate('muse', { name: museName, career: museCareer, complexity: complexityPoints });
+                    nextStep();
+                }
+            };
+            
+            return e(StepContainer, {title: "Step 4: Configure Digital Life (Muse)"},
+                e('p', {className: 'mb-6 text-slate-300'}, "Every character has a Muse, an AI companion in their neural interface. Customize yours. You can sacrifice some of your own Combat Stat points to boost your Muse's starting power."),
+                e('div', {className: 'max-w-lg mx-auto space-y-6'},
+                    e('div', {},
+                        e('label', {htmlFor: 'museName', className: 'block text-cyan-300 mb-1'}, "Muse Name"),
+                        e('input', {type: 'text', id: 'museName', value: museName, onChange: (ev) => setMuseName(ev.target.value), className: 'w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400'})
+                    ),
+                    e('div', {},
+                        e('p', {className: 'text-cyan-300 mb-2'}, "Muse Career (Starts at Rank 1)"),
+                        e('div', {className: 'grid grid-cols-2 gap-2'},
+                            Object.entries(DL_CAREERS).map(([name, desc]) => e(OptionCard, { key: name, title: name, description: desc, isSelected: museCareer === name, onSelect: () => setMuseCareer(name)}))
+                        )
+                    ),
+                    e('div', {},
+                        e('p', {className: 'text-cyan-300 mb-2'}, "Boost Complexity"),
+                        e('p', {className: 'text-sm text-slate-400 mb-3'}, "Spend Combat Stat points (from the next step) to give your Muse a starting bonus. This choice is permanent."),
+                        e(PointAllocator, { label: "Complexity", value: complexityPoints, onIncrement: () => setComplexityPoints(prev => Math.min(prev + 1, 2)), onDecrement: () => setComplexityPoints(prev => Math.max(prev - 1, 0)), max: 2 })
+                    )
+                ),
+                 e('div', { className: 'text-center mt-8' }, e(Button, { text: 'Confirm Muse', onClick: handleNext, disabled: !(museName && museCareer)}))
+            );
+        };
+
+        const CombatStep = ({ onUpdate, nextStep, character }) => {
+            const museComplexity = character.muse ? character.muse.complexity : 0;
+            const totalPoints = 4 - museComplexity;
+            const [combatStats, setCombatStats] = useState({ ML: 0, RG: 0, DF: 0, IN: 0 });
+            const pointsUsed = Object.values(combatStats).reduce((a, b) => a + b, 0);
+
+            const handleChange = (stat, delta) => {
+                const newValue = combatStats[stat] + delta;
+                const newTotal = pointsUsed - combatStats[stat] + newValue;
+                if (newValue >= 0 && newValue <= 2 && newTotal <= totalPoints) {
+                    setCombatStats(prev => ({ ...prev, [stat]: newValue }));
+                }
+            };
+            
+            const handleNext = () => {
+                if(pointsUsed === totalPoints) {
+                    onUpdate('combatStats', combatStats);
+                    nextStep();
+                }
+            }
+            
+            return e(StepContainer, { title: "Step 5: Assign Combat Stats" },
+                e('p', { className: 'mb-4 text-slate-300' }, `You have ${totalPoints} points remaining to allocate into your combat stats: Melee (ML), Ranged (RG), Defence (DF), and Initiative (IN).`),
+                e('div', {className: "text-right text-cyan-300 font-bold text-lg mb-4"}, `Points Remaining: ${totalPoints - pointsUsed}`),
+                e('div', { className: "space-y-4 max-w-md mx-auto mb-8" },
+                    e(PointAllocator, {label: "Melee (ML)", value: combatStats.ML, onIncrement: () => handleChange('ML', 1), onDecrement: () => handleChange('ML', -1), max: 2 }),
+                    e(PointAllocator, {label: "Ranged (RG)", value: combatStats.RG, onIncrement: () => handleChange('RG', 1), onDecrement: () => handleChange('RG', -1), max: 2 }),
+                    e(PointAllocator, {label: "Defence (DF)", value: combatStats.DF, onIncrement: () => handleChange('DF', 1), onDecrement: () => handleChange('DF', -1), max: 2 }),
+                    e(PointAllocator, {label: "Initiative (IN)", value: combatStats.IN, onIncrement: () => handleChange('IN', 1), onDecrement: () => handleChange('IN', -1), max: 2 })
+                ),
+                e('div', { className: 'text-center' }, e(Button, { text: 'Confirm Combat Stats', onClick: handleNext, disabled: pointsUsed !== totalPoints }))
+            );
+        };
+        
+        const TagStep = ({ onUpdate, nextStep, character }) => {
+            const [selectedPositive, setSelectedPositive] = useState(character.positiveTags);
+            const [selectedNegative, setSelectedNegative] = useState(character.negativeTags);
+
+            const handleTogglePositive = (tag) => {
+                const isSelected = selectedPositive.includes(tag);
+                let newPositive = [...selectedPositive];
+                if (isSelected) {
+                    newPositive = newPositive.filter(t => t !== tag);
+                } else if (newPositive.length < 3) {
+                    newPositive.push(tag);
+                }
+                setSelectedPositive(newPositive);
+            };
+
+            const handleToggleNegative = (tag) => {
+                const isSelected = selectedNegative.includes(tag);
+                let newNegative = [...selectedNegative];
+                if (isSelected) {
+                    newNegative = newNegative.filter(t => t !== tag);
+                } else {
+                    newNegative.push(tag);
+                }
+                setSelectedNegative(newNegative);
+            };
+
+            const handleNext = () => {
+                onUpdate('positiveTags', selectedPositive);
+                onUpdate('negativeTags', selectedNegative);
+                nextStep();
+            };
+
+            const requiredNegatives = Math.max(0, selectedPositive.length - 1);
+            const isReady = selectedNegative.length === requiredNegatives && selectedPositive.length > 0;
+
+            return e(StepContainer, { title: "Step 6: Select Tags" },
+                e('p', { className: 'mb-6 text-slate-300' }, 'You start with one free Positive Tag. For each additional Positive Tag (up to 2 more), you must take one Negative Tag.'),
+                e('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-8' },
+                    e('div', {},
+                        e('h3', { className: 'text-2xl font-bold text-cyan-300 mb-4' }, `Positive Tags (${selectedPositive.length}/3)`),
+                        e('div', { className: 'space-y-3 max-h-[400px] overflow-y-auto pr-2' },
+                            Object.entries(POSITIVE_TAGS).map(([name, desc]) => e(OptionCard, { key: name, title: name, description: desc, isSelected: selectedPositive.includes(name), onSelect: () => handleTogglePositive(name) }))
+                        )
+                    ),
+                    e('div', {},
+                        e('h3', { className: 'text-2xl font-bold text-red-400 mb-4' }, `Negative Tags (${selectedNegative.length}/${requiredNegatives})`),
+                        e('div', { className: 'space-y-3 max-h-[400px] overflow-y-auto pr-2' },
+                            Object.entries(NEGATIVE_TAGS).map(([name, desc]) => e(OptionCard, { key: name, title: name, description: desc, isSelected: selectedNegative.includes(name), onSelect: () => handleToggleNegative(name) }))
+                        )
+                    )
+                ),
+                e('div', { className: 'text-center mt-8' }, e(Button, { text: 'Confirm Tags', onClick: handleNext, disabled: !isReady }))
+            );
+        };
+        
+        const ObligationStep = ({ onUpdate, nextStep, character }) => e(StepContainer, { title: "Step 7: Choose Your Obligation" },
+            e('p', { className: 'mb-6 text-slate-300' }, 'Every character has a past that haunts them. This complication drives your personal story. Choose the burden you carry.'),
+            e('div', { className: 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8' },
+                Object.entries(OBLIGATIONS).map(([name, data]) => e(OptionCard, { key: name, title: name, description: data, isSelected: character.obligation === name, onSelect: () => onUpdate('obligation', name) }))
+            ),
+            e('div', { className: 'text-center' }, e(Button, { text: 'Finalize Character', onClick: nextStep, disabled: !character.obligation}))
+        );
+
+        const CharacterSheet = ({ character, restart }) => {
+            const StatDisplay = ({ label, value }) => e('div', { className: "bg-slate-800/90 p-3 rounded-lg text-center transition-transform hover:scale-105 shadow-md" }, e('div', { className: "text-cyan-300 uppercase text-xs tracking-widest font-bold" }, label), e('div', { className: "text-3xl font-bold" }, `${value >= 0 ? '+' : ''}${value}`));
+            const hp = 4 * (9 + (character.attributes.SOM || 0));
+            const load = 9 + (character.attributes.SOM || 0);
+
+            return e(StepContainer, { title: "Character Profile" },
+                e('div', { className: "bg-slate-900/70 p-4 sm:p-6 rounded-lg border border-slate-700" },
+                    e('div', { className: "text-center mb-6" }, e('h3', { className: "text-4xl sm:text-5xl font-bold text-white tracking-wider" }, character.name), e('p', { className: "text-cyan-400 text-xl" }, character.archetype)),
+                    e('p', { className: "text-center italic text-slate-300 mb-8 max-w-2xl mx-auto" }, character.background),
+                    e('div', { className: "grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6" }, Object.entries(character.attributes).map(([key, val]) => e(StatDisplay, { key, label: key, value: val }))),
+                    e('div', { className: 'grid grid-cols-2 md:grid-cols-3 gap-4 mb-8 bg-slate-800/50 p-4 rounded-md border border-slate-600' }, e(StatDisplay, {label: "HP", value: hp}), e(StatDisplay, {label: "Load", value: load}), e('div', { className: "bg-slate-800/90 p-3 rounded-lg text-center transition-transform hover:scale-105 shadow-md col-span-2 md:col-span-1" }, e('div', { className: "text-cyan-300 uppercase text-xs tracking-widest font-bold" }, 'Base TN'), e('div', { className: "text-3xl font-bold" }, 9))),
+                    e('div', { className: "grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8" }, Object.entries(character.combatStats).map(([key, val]) => e(StatDisplay, { key, label: key, value: val }))),
+                    e('div', { className: 'grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8'}, 
+                        e('div', {}, 
+                            e('h4', { className: "text-xl font-bold text-cyan-300 mb-3 border-b-2 border-cyan-300/20 pb-2" }, 'Careers'), 
+                            e('ul', { className: "space-y-1 list-disc list-inside text-slate-200" }, Object.entries(character.careers).map(([key, val]) => e('li', { key }, `${key} `, e('span', { className: 'font-bold' }, `${val >= 0 ? '+' : ''}${val}`))))
+                        ), 
+                        e('div', {}, 
+                            e('h4', { className: "text-xl font-bold text-cyan-300 mb-3 border-b-2 border-cyan-300/20 pb-2" }, 'Obligation'), 
+                            e('p', { className: "text-slate-200" }, e('span', { className: 'font-bold text-white' }, `${character.obligation}: `), character.obligation ? OBLIGATIONS[character.obligation] : ''))
+                    ),
+                    e('div', { className: 'grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8'}, 
+                        e('div', {}, 
+                            e('h4', { className: "text-xl font-bold text-cyan-300 mb-3 border-b-2 border-cyan-300/20 pb-2" }, 'Digital Life: Muse'), 
+                            e('p', {className: 'text-slate-200'}, e('strong', {className: 'text-white'}, `Name: `), character.muse.name), 
+                            e('p', {className: 'text-slate-200'}, e('strong', {className: 'text-white'}, `Career: `), character.muse.career, ` (+1)`), 
+                            e('p', {className: 'text-slate-200'}, e('strong', {className: 'text-white'}, `Complexity: `), `+${character.muse.complexity}`)
+                        ), 
+                        e('div', {}, 
+                            e('h4', { className: "text-xl font-bold text-cyan-300 mb-3 border-b-2 border-cyan-300/20 pb-2" }, 'Tags'), 
+                            e('div', { className: 'grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2'}, 
+                                e('div', {}, e('h5', {className: 'text-lg font-semibold text-white'}, 'Positive'), e('ul', { className: "space-y-1 list-disc list-inside text-slate-200" }, character.positiveTags.map(tag => e('li', {key: tag}, tag)))), 
+                                e('div', {}, e('h5', {className: 'text-lg font-semibold text-red-400'}, 'Negative'), e('ul', { className: "space-y-1 list-disc list-inside text-slate-200" }, character.negativeTags.map(tag => e('li', {key: tag}, tag))))
+                            )
+                        )
+                    )
+                ),
+                e('div', { className: "text-center mt-8" }, e(Button, { text: "Create Another Character", onClick: restart, primary: false }))
+            );
+        };
+        
+        // --- MAIN APP COMPONENT ---
+        const App = () => {
+            const [step, setStep] = useState(0);
+            const [character, setCharacter] = useState({ name: "Character", archetype: null, attributes: { SOM: 0, DEX: 0, COG: 0, PRE: 0 }, careers: {}, combatStats: { ML: 0, RG: 0, DF: 0, IN: 0 }, muse: {name: '', career: '', complexity: 0}, positiveTags: [], negativeTags: [], obligation: null, background: "" });
+            
+            const handleUpdate = (key, value) => { setCharacter(prev => ({ ...prev, [key]: value })); };
+            const nextStep = () => setStep(prev => prev + 1);
+            const prevStep = () => setStep(prev => prev > 0 ? prev - 1 : 0);
+            const restart = () => { setStep(0); setCharacter({ name: "Character", archetype: null, attributes: { SOM: 0, DEX: 0, COG: 0, PRE: 0 }, careers: {}, combatStats: { ML: 0, RG: 0, DF: 0, IN: 0 }, muse: {name: '', career: '', complexity: 0}, positiveTags: [], negativeTags: [], obligation: null, background: "" }); };
+
+            const generateCharacterDetails = useCallback(() => {
+                if (character.archetype && !character.background) { // Only generate if not already set
+                    const name = NAMES[character.archetype][Math.floor(Math.random() * NAMES[character.archetype].length)];
+                    const tempChar = { ...character, name };
+                    const background = BACKGROUND_TEMPLATES[character.archetype](tempChar);
+                    setCharacter(prev => ({ ...prev, name, background }));
+                }
+            }, [character.archetype, character.name, character.background]);
+
+            useEffect(() => {
+                if (step === 7) { // Trigger on reaching final sheet
+                    generateCharacterDetails();
+                }
+            }, [step, generateCharacterDetails]);
+
+            const renderStep = () => {
+                const props = { onUpdate: handleUpdate, nextStep, character };
+                switch (step) {
+                    case 0: return e(ArchetypeStep, props);
+                    case 1: return e(AttributeStep, props);
+                    case 2: return e(CareerStep, props);
+                    case 3: return e(MuseStep, props);
+                    case 4: return e(CombatStep, props);
+                    case 5: return e(TagStep, props);
+                    case 6: return e(ObligationStep, props);
+                    case 7: return e(CharacterSheet, { character, restart });
+                    default: return e('div', {}, 'Unknown Step');
+                }
+            };
+
+            return e('main', { className: 'bg-slate-900 text-white min-h-screen font-sans flex flex-col items-center justify-center p-2 sm:p-4' },
+                e('div', { className: 'w-full max-w-6xl bg-slate-800/50 rounded-lg shadow-2xl backdrop-blur-sm border border-slate-700 overflow-hidden my-8' },
+                    e('header', { className: 'p-4 bg-slate-900/70 border-b border-slate-700' },
+                        e('h1', { className: 'text-2xl font-bold text-center tracking-widest text-white uppercase' }, 'Ghost Dissonance'),
+                        e('p', { className: 'text-center text-cyan-400' }, 'Character Creator')
+                    ),
+                    e('div', { className: 'p-2' }, renderStep()),
+                    step < 7 && e('footer', { className: 'p-4 bg-slate-900/70 border-t border-slate-700 flex justify-between items-center' },
+                        e(Button, { text: 'Back', onClick: prevStep, disabled: step === 0, primary: false }),
+                        e('div', { className: 'text-sm text-slate-400' }, `STEP ${step + 1} / 8`)
+                    )
+                )
+            );
+        };
+
+        // --- RENDER THE APP ---
+        ReactDOM.render(e(App), document.getElementById('root'));
+
+    </script>
+</body>
+</html>
